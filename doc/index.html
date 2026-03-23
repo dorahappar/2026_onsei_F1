@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>位置情報と音声メモ</title>
+
+<style>
+body {
+  font-family: Arial;
+  margin: 20px;
+}
+
+.button {
+  padding: 10px 15px;
+  margin: 5px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.button:hover { background: #45a049; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 8px;
+}
+
+textarea {
+  width: 100%;
+  min-height: 50px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>位置情報 + 音声メモ</h2>
+
+<button class="button" id="getLocationButton">位置取得＋音声</button>
+<button class="button" id="exportButton">CSV出力＋共有</button>
+
+<table>
+<thead>
+<tr>
+<th>No</th>
+<th>日時</th>
+<th>緯度</th>
+<th>経度</th>
+<th>メモ</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+
+<script>
+let locationData = [];
+
+// 音声認識
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const recognition = new SpeechRecognition();
+recognition.lang = 'ja-JP';
+
+// 位置取得
+document.getElementById("getLocationButton").onclick = () => {
+  navigator.geolocation.getCurrentPosition(pos => {
+
+    const data = {
+      dateTime: new Date().toLocaleString(),
+      latitude: pos.coords.latitude.toFixed(5),
+      longitude: pos.coords.longitude.toFixed(5),
+      memo: ""
+    };
+
+    locationData.push(data);
+    renderTable();
+
+    startSpeech(locationData.length - 1);
+
+  }, err => alert(err.message));
+};
+
+// テーブル表示
+function renderTable() {
+  const body = document.getElementById("tableBody");
+  body.innerHTML = "";
+
+  locationData.slice().reverse().forEach((d, i) => {
+    const index = locationData.length - 1 - i;
+
+    body.innerHTML += `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${d.dateTime}</td>
+        <td>${d.latitude}</td>
+        <td>${d.longitude}</td>
+        <td>
+          <textarea oninput="updateMemo(${index}, this.value)">${d.memo}</textarea>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+// メモ更新
+function updateMemo(i, val) {
+  locationData[i].memo = val;
+}
+
+// 音声入力
+function startSpeech(index) {
+  recognition.start();
+
+  recognition.onresult = e => {
+    const text = e.results[0][0].transcript;
+    locationData[index].memo = text;
+    renderTable();
+  };
+
+  recognition.onerror = e => console.log(e);
+}
+
+// CSV生成
+function createCSV() {
+  let csv = "No,日時,緯度,経度,メモ\n";
+
+  locationData.forEach((d, i) => {
+    const memo = d.memo.replace(/"/g, '""');
+    csv += `${i+1},"${d.dateTime}",${d.latitude},${d.longitude},"${memo}"\n`;
+  });
+
+  return csv;
+}
+
+// ボタン処理（共有 or ダウンロード）
+document.getElementById("exportButton").onclick = async () => {
+
+  const csv = createCSV();
+  const blob = new Blob([csv], { type: "text/csv" });
+  const file = new File([blob], "location_data.csv");
+
+  // スマホ（共有）
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({
+        title: "位置情報CSV",
+        text: "CSVデータです",
+        files: [file]
+      });
+      return;
+    } catch (e) {
+      console.log("共有キャンセル");
+    }
+  }
+
+  // PC（ダウンロード）
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "location_data.csv";
+  a.click();
+};
+</script>
+
+</body>
+</html>
