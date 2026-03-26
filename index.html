@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -8,34 +9,76 @@
 <style>
 body {
   font-family: Arial;
-  margin: 20px;
+  margin: 10px;
 }
 
+/* ===== ボタン ===== */
 .button {
   padding: 10px 15px;
   margin: 5px;
+  font-size: 14px;
+  border-radius: 8px;
   background: #4CAF50;
   color: white;
   border: none;
-  border-radius: 5px;
   cursor: pointer;
 }
 .button:hover { background: #45a049; }
 
+/* 左上配置 */
+.button-area {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+/* スマホ */
+@media screen and (max-width: 600px) {
+  .button-area {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .button {
+    width: auto;
+  }
+}
+
+/* PC */
+@media screen and (min-width: 601px) {
+  .button-area {
+    flex-direction: row;
+  }
+}
+
+/* ===== テーブル ===== */
+.table-wrapper {
+  overflow-x: auto;
+}
+
 table {
+  min-width: 600px;
   width: 100%;
   border-collapse: collapse;
-  margin-top: 20px;
+  margin-top: 10px;
 }
 
 th, td {
   border: 1px solid #ccc;
   padding: 8px;
+  text-align: left;
 }
 
+th {
+  background: #f0f0f0;
+}
+
+/* テキストエリア */
 textarea {
   width: 100%;
   min-height: 50px;
+  resize: vertical;
+  font-size: 14px;
 }
 </style>
 </head>
@@ -44,31 +87,33 @@ textarea {
 
 <h2>8713edit</h2>
 
-<button class="button" id="getLocationButton">位置取得＋音声</button>
-<button class="button" id="exportButton">CSV出力＋共有</button>
+<div class="button-area">
+  <button class="button" id="getLocationButton">位置取得＋音声</button>
+  <button class="button" id="exportButton">CSV出力＋共有</button>
+</div>
 
-<table>
-<thead>
-<tr>
-<th>No</th>
-<th>日時</th>
-<th>緯度</th>
-<th>経度</th>
-<th>メモ</th>
-</tr>
-</thead>
-<tbody id="tableBody"></tbody>
-</table>
+<div class="table-wrapper">
+  <table>
+    <thead>
+      <tr>
+        <th>No</th>
+        <th>日時</th>
+        <th>緯度</th>
+        <th>経度</th>
+        <th>メモ</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
 
 <script>
 let locationData = [];
 
-// 音声認識
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = new SpeechRecognition();
 recognition.lang = 'ja-JP';
 
-// 位置取得
 document.getElementById("getLocationButton").onclick = () => {
   navigator.geolocation.getCurrentPosition(pos => {
 
@@ -81,13 +126,11 @@ document.getElementById("getLocationButton").onclick = () => {
 
     locationData.push(data);
     renderTable();
-
     startSpeech(locationData.length - 1);
 
   }, err => alert(err.message));
 };
 
-// テーブル表示
 function renderTable() {
   const body = document.getElementById("tableBody");
   body.innerHTML = "";
@@ -109,12 +152,10 @@ function renderTable() {
   });
 }
 
-// メモ更新
 function updateMemo(i, val) {
   locationData[i].memo = val;
 }
 
-// 音声入力
 function startSpeech(index) {
   recognition.start();
 
@@ -127,7 +168,6 @@ function startSpeech(index) {
   recognition.onerror = e => console.log(e);
 }
 
-// CSV生成
 function createCSV() {
   let csv = "No,日時,緯度,経度,メモ\n";
 
@@ -139,14 +179,12 @@ function createCSV() {
   return csv;
 }
 
-// ボタン処理（共有 or ダウンロード）
 document.getElementById("exportButton").onclick = async () => {
 
   const csv = createCSV();
   const blob = new Blob([csv], { type: "text/csv" });
   const file = new File([blob], "location_data.csv");
 
-  // スマホ（共有）
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({
@@ -160,7 +198,6 @@ document.getElementById("exportButton").onclick = async () => {
     }
   }
 
-  // PC（ダウンロード）
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "location_data.csv";
